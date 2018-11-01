@@ -34,7 +34,8 @@ class LuisBot {
       }
 
       try {
-        location = results.luisResult.entities.filter(entity => entity.type === 'builtin.geographyV2.city')[0].entity
+        // location = results.luisResult.entities.filter(entity => entity.type === 'builtin.geographyV2.city')[0].entity
+        location = results.luisResult.entities.filter(entity => entity.type.startsWith('builtin.geographyV2'))[0].entity
         await this.userLocation.set(turnContext, location)
       } catch(error) {
         console.log(error)
