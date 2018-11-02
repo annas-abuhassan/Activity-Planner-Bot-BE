@@ -1,7 +1,8 @@
 const restify = require('restify');
 const { BotFrameworkAdapter, MemoryStorage, UserState } = require('botbuilder');
 const { LuisBot } = require('./bot');
-const luisApplication = require('./luisConfig');
+// const luisApplication = require('./luisConfig');
+const luisApplication = require('./luisConfig2');
  
 // Create bot adapter, which defines how the bot sends and receives messages.
 var adapter = new BotFrameworkAdapter({

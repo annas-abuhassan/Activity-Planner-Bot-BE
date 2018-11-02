@@ -13,6 +13,7 @@
     "axios": "^0.18.0",
     "botbuilder": "^4.0.8",
     "botbuilder-ai": "^4.0.8",
+    "pluralize": "^7.0.0",
     "restify": "^7.2.2"
   }
 }
