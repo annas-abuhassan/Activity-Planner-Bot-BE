@@ -5,10 +5,13 @@ const { LuisRecognizer } = require('botbuilder-ai');
 const { MessageFactory } = require('botbuilder-core');
 const cardGenerator = require('./cardGenerator');
 const { yelpConfig } = require('./config');
+const { getUserData } = require('./utils');
 
 class LuisBot {
   constructor(userState, application, luisPredictionOptions) {
     this.userState = userState;
+    this.userChannel = userState.createProperty('userChannel');
+    this.userName = userState.createProperty('userName');
     this.searchTerms = userState.createProperty('searchTerms');
     this.searchLocation = userState.createProperty('searchLocation');
     this.searchCategory = userState.createProperty('searchCategory');
@@ -20,6 +23,14 @@ class LuisBot {
   }
 
   async onTurn(turnContext) {
+    if (!(await this.userChannel.get(turnContext))) {
+      await this.userChannel.set(turnContext, turnContext.activity.channelId);
+      console.log(await this.userChannel.get(turnContext));
+      if (turnContext.activity.channelId === 'facebook') {
+        console.log(getUserData(turnContext.activity.from.id));
+      }
+    }
+
     if (turnContext.activity.type === ActivityTypes.Message) {
       const results = await this.luisRecognizer.recognize(turnContext);
       const { entities } = results;
