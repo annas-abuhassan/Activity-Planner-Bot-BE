@@ -28,7 +28,7 @@ const reqFacebookLocation = userId => {
   );
 };
 
-const sendFacebookCard = (id, businesses) => {
+const sendFacebookCard = async (id, businesses) => {
   console.log(businesses);
   const elementsArray = [];
   businesses.forEach(business => {

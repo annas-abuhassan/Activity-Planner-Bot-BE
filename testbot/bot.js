@@ -42,11 +42,16 @@ class LuisBot {
     }
 
     if (turnContext.activity.type === ActivityTypes.Message) {
-      const results = await this.luisRecognizer.recognize(turnContext);
-      const { entities } = results;
-      console.log(results);
+      let intent, entities;
 
-      const { intent, score } = this.getIntent(results);
+      if (turnContext.activity.text) {
+        const results = await this.luisRecognizer.recognize(turnContext);
+        ({ entities } = results);
+        console.log(results);
+        ({ intent } = this.getIntent(results));
+      } else {
+        intent = 'sendingLocation';
+      }
 
       if (intent === 'findBusiness') {
         await this.parseEntities(turnContext, entities);
@@ -57,6 +62,13 @@ class LuisBot {
       } else if (intent === 'provideLocation') {
         await this.searchLocation.set(turnContext, this.getLocation(entities));
         await this.userState.saveChanges(turnContext);
+        const allSearchParamsPresent = await this.checkSearchParams(
+          turnContext
+        );
+        if (allSearchParamsPresent) await this.displayResults(turnContext);
+      } else if (intent === 'sendingLocation') {
+        const { latitude, longitude } = turnContext.activity.entities[0].geo;
+        await this.searchLocation.set(turnContext, { latitude, longitude });
         const allSearchParamsPresent = await this.checkSearchParams(
           turnContext
         );
@@ -87,9 +99,7 @@ class LuisBot {
   getIntent(results) {
     const intent = Object.keys(results.intents)[0];
     const { score } = results.intents[intent];
-    return score >= 0.8
-      ? { intent, score }
-      : { intent: undefined, score: undefined };
+    return score >= 0.8 ? { intent } : { intent: undefined };
   }
 
   async parseEntities(turnContext, entities) {
@@ -151,33 +161,52 @@ class LuisBot {
 
   async checkSearchParams(turnContext) {
     if (!(await this.searchLocation.get(turnContext))) {
-      await turnContext.sendActivity(`Where do you want me to search?`);
-      return false;
+      if ((await this.userChannel.get(turnContext)) === 'facebook') {
+        await turnContext.sendActivity(
+          `Click below to share with me your location or tell me where to search :)!`
+        );
+        await reqFacebookLocation(await this.userId.get(turnContext));
+        return false;
+      } else {
+        await turnContext.sendActivity(`Where do you want me to search?`);
+        return false;
+      }
     }
     return true;
   }
 
   async getBusinesses(terms, location, category) {
     console.log({ terms, location, category });
+
     terms = terms === undefined ? category : terms;
+    const url =
+      typeof location === 'string'
+        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}`
+        : `https://api.yelp.com/v3/businesses/search?term=${terms}&longitude=${
+            location.longitude
+          }&latitude=${location.latitude}&categories=${category}`;
+
     return axios
-      .get(
-        `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}`,
-        yelpConfig
-      )
+      .get(url, yelpConfig)
       .then(({ data }) => data.businesses)
       .catch(console.log);
   }
 
   async displayResults(turnContext) {
-    const terms = await this.searchTerms.get(turnContext);
     let location = await this.searchLocation.get(turnContext);
-    location = location.charAt(0).toUpperCase() + location.slice(1);
+    const terms = await this.searchTerms.get(turnContext);
     const category = await this.searchCategory.get(turnContext);
 
-    await turnContext.sendActivity(
-      `Sounds like you're looking for ${category} in ${location}`
-    );
+    if (typeof location === 'string') {
+      location = location.charAt(0).toUpperCase() + location.slice(1);
+      await turnContext.sendActivity(
+        `Sounds like you're looking for ${category} in ${location}`
+      );
+    } else {
+      await turnContext.sendActivity(
+        `Sounds like you're looking for ${category} nearby...`
+      );
+    }
     await turnContext.sendActivity(`How about one of these?`);
 
     await this.getBusinesses(terms, location, category)
