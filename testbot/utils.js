@@ -1,6 +1,19 @@
 const axios = require('axios');
 const { facebookToken } = require('./config');
 
+const sendTypingIndicator = async (userId, channel) => {
+  if (channel === 'facebook')
+    axios.post(
+      `https://graph.facebook.com/v2.6/me/messages?access_token=${facebookToken}`,
+      {
+        recipient: {
+          id: userId
+        },
+        sender_action: 'typing_on'
+      }
+    );
+};
+
 const getFacebookData = async userId => {
   return axios
     .get(
@@ -17,7 +30,8 @@ const reqFacebookLocation = userId => {
         id: `${userId}`
       },
       message: {
-        text: 'Send me your location!',
+        text:
+          'Click below to share with me your location or tell me where to search :)!',
         quick_replies: [
           {
             content_type: 'location'
@@ -91,4 +105,9 @@ const sendFacebookCard = async (id, businesses) => {
   );
 };
 
-module.exports = { getFacebookData, reqFacebookLocation, sendFacebookCard };
+module.exports = {
+  getFacebookData,
+  reqFacebookLocation,
+  sendFacebookCard,
+  sendTypingIndicator
+};

@@ -8,7 +8,8 @@ const { yelpConfig } = require('./config');
 const {
   getFacebookData,
   sendFacebookCard,
-  reqFacebookLocation
+  reqFacebookLocation,
+  sendTypingIndicator
 } = require('./utils');
 
 class LuisBot {
@@ -162,8 +163,9 @@ class LuisBot {
   async checkSearchParams(turnContext) {
     if (!(await this.searchLocation.get(turnContext))) {
       if ((await this.userChannel.get(turnContext)) === 'facebook') {
-        await turnContext.sendActivity(
-          `Click below to share with me your location or tell me where to search :)!`
+        await sendTypingIndicator(
+          await this.userId.get(turnContext),
+          await this.userChannel.get(turnContext)
         );
         await reqFacebookLocation(await this.userId.get(turnContext));
         return false;
@@ -199,14 +201,26 @@ class LuisBot {
 
     if (typeof location === 'string') {
       location = location.charAt(0).toUpperCase() + location.slice(1);
+      await sendTypingIndicator(
+        await this.userId.get(turnContext),
+        await this.userChannel.get(turnContext)
+      );
       await turnContext.sendActivity(
         `Sounds like you're looking for ${category} in ${location}`
       );
     } else {
+      await sendTypingIndicator(
+        await this.userId.get(turnContext),
+        await this.userChannel.get(turnContext)
+      );
       await turnContext.sendActivity(
         `Sounds like you're looking for ${category} nearby...`
       );
     }
+    await sendTypingIndicator(
+      await this.userId.get(turnContext),
+      await this.userChannel.get(turnContext)
+    );
     await turnContext.sendActivity(`How about one of these?`);
 
     await this.getBusinesses(terms, location, category)
