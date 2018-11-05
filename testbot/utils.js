@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { facebookToken } = require('./config');
 
-const getUserData = userId => {
+const getUserData = async userId => {
   return axios
     .get(
       `https://graph.facebook.com/${userId}?fields=first_name,last_name,profile_pic&access_token=${facebookToken}`

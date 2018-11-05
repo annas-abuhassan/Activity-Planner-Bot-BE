@@ -12,6 +12,7 @@ class LuisBot {
     this.userState = userState;
     this.userChannel = userState.createProperty('userChannel');
     this.userName = userState.createProperty('userName');
+    this.userId = userState.createProperty('userId');
     this.searchTerms = userState.createProperty('searchTerms');
     this.searchLocation = userState.createProperty('searchLocation');
     this.searchCategory = userState.createProperty('searchCategory');
@@ -25,9 +26,14 @@ class LuisBot {
   async onTurn(turnContext) {
     if (!(await this.userChannel.get(turnContext))) {
       await this.userChannel.set(turnContext, turnContext.activity.channelId);
-      console.log(await this.userChannel.get(turnContext));
+      await this.userId.set(turnContext, turnContext.activity.from.id);
+
       if (turnContext.activity.channelId === 'facebook') {
-        console.log(getUserData(turnContext.activity.from.id));
+        await getUserData(await this.userId.get(turnContext)).then(
+          async ({ first_name }) => {
+            await this.userName.set(turnContext, first_name);
+          }
+        );
       }
     }
 

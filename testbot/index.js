@@ -1,12 +1,44 @@
 const restify = require('restify');
+const path = require('path');
+const { BotConfiguration } = require('botframework-config');
 const { BotFrameworkAdapter, MemoryStorage, UserState } = require('botbuilder');
 const { LuisBot } = require('./bot');
 const { luisApplication } = require('./config');
 
-// Create bot adapter, which defines how the bot sends and receives messages.
-var adapter = new BotFrameworkAdapter({
-  appId: process.env.MicrosoftAppId,
-  appPassword: process.env.MicrosoftAppPassword
+const ENV_FILE = path.join(__dirname, '.env');
+const env = require('dotenv').config({ path: ENV_FILE });
+
+const BOT_FILE = path.join(__dirname, process.env.botFilePath || '');
+
+let botConfig;
+try {
+  botConfig = BotConfiguration.loadSync(BOT_FILE, process.env.botFileSecret);
+} catch (err) {
+  console.log(err);
+  console.error(
+    `\nError reading bot file. Please ensure you have valid botFilePath and botFileSecret set for your environment.`
+  );
+  console.error(
+    `\n - You can find the botFilePath and botFileSecret in the Azure App Service application settings.`
+  );
+  console.error(
+    `\n - If you are running this bot locally, consider adding a .env file with botFilePath and botFileSecret.`
+  );
+  console.error(
+    `\n - See https://aka.ms/about-bot-file to learn more about .bot file its use and bot configuration.\n\n`
+  );
+  process.exit();
+}
+
+const DEV_ENVIRONMENT = 'development';
+const BOT_CONFIGURATION = process.env.NODE_ENV || DEV_ENVIRONMENT;
+
+const endpointConfig = botConfig.findServiceByNameOrId(BOT_CONFIGURATION);
+
+const adapter = new BotFrameworkAdapter({
+  appId: endpointConfig.appId || process.env.microsoftAppID,
+  appPassword: endpointConfig.appPassword || process.env.microsoftAppPassword,
+  openIdMetadata: process.env.BotOpenIdMetadata
 });
 
 // Create HTTP server.
