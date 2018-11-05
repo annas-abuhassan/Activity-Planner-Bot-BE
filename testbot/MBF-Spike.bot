@@ -1,0 +1,48 @@
+{
+    "name": "MBF-Spike",
+    "description": "",
+    "services": [
+        {
+            "type": "abs",
+            "appId": "cc5e66af-1ef7-4dd3-85bd-7029f0733532",
+            "id": "1",
+            "name": "MBF-Spike",
+            "resourceGroup": "TestResourceGroup",
+            "serviceName": "MBF-Spike",
+            "subscriptionId": "e44a0e5a-e52a-465d-b4e5-a18a0b42e9d7",
+            "tenantId": "f6977916-b30b-475a-80f3-57f7c2b819d5"
+        },
+        {
+            "type": "endpoint",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:3978/api/messages",
+            "id": "3",
+            "name": "development"
+        },
+        {
+            "type": "endpoint",
+            "appId": "cc5e66af-1ef7-4dd3-85bd-7029f0733532",
+            "appPassword": "NKirZJa3XvO5uUE3bVgwwg==!pWa8cDM62WaUbUQmwCHkuV9yIqt655rFom2oBIAHbEw=",
+            "endpoint": "https://mbf-spike.azurewebsites.net/api/messages",
+            "id": "4",
+            "name": "production"
+        },
+        {
+            "type": "appInsights",
+            "apiKeys": {},
+            "applicationId": "4f174046-214c-4109-816b-3cee102b0b97",
+            "id": "5",
+            "instrumentationKey": "U4G3XjGUlgdluqiwEg0VIQ==!S8WXwLJglEzbKX+DtgNpAJHEVxdcENV3/O/P+YoiXBRuDFZYeRo7awJ+pHcisJ1r",
+            "resourceGroup": "TestResourceGroup",
+            "serviceName": "MBF-Spikes5ovqe",
+            "subscriptionId": "e44a0e5a-e52a-465d-b4e5-a18a0b42e9d7",
+            "tenantId": "f6977916-b30b-475a-80f3-57f7c2b819d5"
+        }
+    ],
+    "padlock": "JawRhYg2q7icLCfY0IAI5w==!M13TGvfUud1PpHUMOfgAMDuzm7ymlzrXhcZ3N0x5gggKhpgdg1/YjAA0deWg5LXh",
+    "version": "2.0",
+    "overrides": null,
+    "path": "/home/annas-abuhassan/Desktop/NC/Project/Activity-Planner-Bot-BE/testbot/MBF-Spike.bot"
+    
+}
