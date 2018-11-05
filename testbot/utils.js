@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { facebookToken } = require('./config');
 
-const getUserData = async userId => {
+const getFacebookData = async userId => {
   return axios
     .get(
       `https://graph.facebook.com/${userId}?fields=first_name,last_name,profile_pic&access_token=${facebookToken}`
@@ -9,7 +9,7 @@ const getUserData = async userId => {
     .then(({ data }) => data);
 };
 
-const sendLocation = userId => {
+const reqFacebookLocation = userId => {
   return axios.post(
     `https://graph.facebook.com/v2.6/me/messages?access_token=${facebookToken}`,
     {
@@ -28,7 +28,8 @@ const sendLocation = userId => {
   );
 };
 
-const sendCard = (id, businesses) => {
+const sendFacebookCard = (id, businesses) => {
+  console.log(businesses);
   const elementsArray = [];
   businesses.forEach(business => {
     const {
@@ -90,4 +91,4 @@ const sendCard = (id, businesses) => {
   );
 };
 
-module.exports = { getUserData, sendLocation, sendCard };
+module.exports = { getFacebookData, reqFacebookLocation, sendFacebookCard };

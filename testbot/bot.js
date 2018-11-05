@@ -5,7 +5,11 @@ const { LuisRecognizer } = require('botbuilder-ai');
 const { MessageFactory } = require('botbuilder-core');
 const cardGenerator = require('./cardGenerator');
 const { yelpConfig } = require('./config');
-const { getUserData } = require('./utils');
+const {
+  getFacebookData,
+  sendFacebookCard,
+  reqFacebookLocation
+} = require('./utils');
 
 class LuisBot {
   constructor(userState, application, luisPredictionOptions) {
@@ -29,7 +33,7 @@ class LuisBot {
       await this.userId.set(turnContext, turnContext.activity.from.id);
 
       if (turnContext.activity.channelId === 'facebook') {
-        await getUserData(await this.userId.get(turnContext)).then(
+        await getFacebookData(await this.userId.get(turnContext)).then(
           async ({ first_name }) => {
             await this.userName.set(turnContext, first_name);
           }
@@ -180,8 +184,15 @@ class LuisBot {
       .then(async businesses => {
         const topFive = businesses.slice(0, 5);
         const messageArray = [];
-        topFive.forEach(business => messageArray.push(cardGenerator(business)));
-        await turnContext.sendActivity(MessageFactory.carousel(messageArray));
+
+        if ((await this.userChannel.get(turnContext)) === 'facebook') {
+          sendFacebookCard(await this.userId.get(turnContext), topFive);
+        } else {
+          topFive.forEach(business =>
+            messageArray.push(cardGenerator(business))
+          );
+          await turnContext.sendActivity(MessageFactory.carousel(messageArray));
+        }
       })
       .catch(error => turnContext.sendActivity(`${error}`));
   }
