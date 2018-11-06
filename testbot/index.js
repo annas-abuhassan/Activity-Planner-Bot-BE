@@ -60,8 +60,10 @@ const userState = new UserState(memoryStorage);
 const bot = new LuisBot(userState, luisApplication, luisPredictionOptions);
 
 // Listen for incoming requests.
+
 server.post('/api/messages', (req, res) => {
   adapter.processActivity(req, res, async turnContext => {
+    console.log(req);
     await bot.onTurn(turnContext);
   });
 });

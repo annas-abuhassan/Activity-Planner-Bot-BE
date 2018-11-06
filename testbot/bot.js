@@ -1,19 +1,17 @@
 const axios = require('axios');
 const pluralize = require('pluralize');
-const { ActivityTypes, BotState } = require('botbuilder');
-const { ChoiceFactory } = require('botbuilder-choices');
-const { ChoicePrompt } = require('botbuilder-dialogs');
+const { ActivityTypes } = require('botbuilder');
 const { LuisRecognizer } = require('botbuilder-ai');
-const { MessageFactory } = require('botbuilder-core');
 
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
-  sendFacebookCard,
+  // sendFacebookCard,
   reqFacebookLocation,
   sendTypingIndicator,
-  cardGenerator,
-  moreOptionsFacebook
+  // cardGenerator,
+  sendMoreOptions,
+  sendCards
 } = require('./utils');
 
 class LuisBot {
@@ -34,6 +32,7 @@ class LuisBot {
   }
 
   async onTurn(turnContext) {
+    // console.log(turnContext);
     if (!(await this.userChannel.get(turnContext))) {
       await this.userChannel.set(turnContext, turnContext.activity.channelId);
       await this.userId.set(turnContext, turnContext.activity.from.id);
@@ -57,9 +56,6 @@ class LuisBot {
         await this.displayResults(turnContext);
       } else if (turnContext.activity.text === 'Done') {
         await this.userState.clear(turnContext);
-        //offset
-        //location
-        //cuisine
       } else {
         let intent, entities;
 
@@ -250,27 +246,37 @@ class LuisBot {
 
     await this.getBusinesses(turnContext, terms, location, category)
       .then(async businesses => {
-        const messageArray = [];
-        if ((await this.userChannel.get(turnContext)) === 'facebook') {
-          await sendFacebookCard(
-            await this.userId.get(turnContext),
-            businesses
-          );
-          await moreOptionsFacebook(await this.userId.get(turnContext));
-        } else {
-          businesses.forEach(business =>
-            messageArray.push(cardGenerator(business))
-          );
-          await turnContext.sendActivity(MessageFactory.carousel(messageArray));
+        // const messageArray = [];
+        // if ((await this.userChannel.get(turnContext)) === 'facebook') {
+        // await sendFacebookCard(
+        //   await this.userId.get(turnContext),
+        //   businesses
+        // );
+        await sendCards(
+          await this.userChannel.get(turnContext),
+          businesses,
+          await this.userId.get(turnContext),
+          turnContext
+        );
+        await sendMoreOptions(
+          await this.userId.get(turnContext),
+          await this.userChannel.get(turnContext),
+          turnContext
+        );
+        // } else {
+        //   businesses.forEach(business =>
+        //     messageArray.push(cardGenerator(business))
+        //   );
+        // await turnContext.sendActivity(MessageFactory.carousel(messageArray));
 
-          const messageChoice = ChoiceFactory.forChannel(
-            turnContext,
-            ['More', 'Done'],
-            'Would you like to see more options?'
-          );
+        // const messageChoice = ChoiceFactory.forChannel(
+        //   turnContext,
+        //   ['More', 'Done'],
+        //   'Would you like to see more options?'
+        // );
 
-          await turnContext.sendActivity(messageChoice);
-        }
+        // await turnContext.sendActivity(messageChoice);
+        // }
       })
       .catch(error => turnContext.sendActivity(`${error}`));
   }
