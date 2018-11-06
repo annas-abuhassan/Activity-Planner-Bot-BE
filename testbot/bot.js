@@ -3,13 +3,13 @@ const pluralize = require('pluralize');
 const { ActivityTypes } = require('botbuilder');
 const { LuisRecognizer } = require('botbuilder-ai');
 const { MessageFactory } = require('botbuilder-core');
-const cardGenerator = require('./cardGenerator');
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
   sendFacebookCard,
   reqFacebookLocation,
-  sendTypingIndicator
+  sendTypingIndicator,
+  cardGenerator
 } = require('./utils');
 
 class LuisBot {
