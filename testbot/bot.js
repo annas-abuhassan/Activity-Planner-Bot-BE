@@ -19,6 +19,7 @@ class LuisBot {
     this.userName = userState.createProperty('userName');
     this.userId = userState.createProperty('userId');
     this.searchTerms = userState.createProperty('searchTerms');
+    this.searchOffset = userState.createProperty('searchOffset');
     this.searchLocation = userState.createProperty('searchLocation');
     this.searchCategory = userState.createProperty('searchCategory');
     this.luisRecognizer = new LuisRecognizer(
@@ -177,13 +178,13 @@ class LuisBot {
     return true;
   }
 
-  async getBusinesses(terms, location, category) {
+  async getBusinesses(turnContext, terms, location, category) {
     console.log({ terms, location, category });
-
+    const offset = (await this.searchOffset.get(turnContext)) || 0;
     terms = terms === undefined ? category : terms;
     const url =
       typeof location === 'string'
-        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}`
+        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}&limit=5&offset=${offset}`
         : `https://api.yelp.com/v3/businesses/search?term=${terms}&longitude=${
             location.longitude
           }&latitude=${location.latitude}&categories=${category}`;
@@ -223,15 +224,13 @@ class LuisBot {
     );
     await turnContext.sendActivity(`How about one of these?`);
 
-    await this.getBusinesses(terms, location, category)
+    await this.getBusinesses(turnContext, terms, location, category)
       .then(async businesses => {
-        const topFive = businesses.slice(0, 5);
         const messageArray = [];
-
         if ((await this.userChannel.get(turnContext)) === 'facebook') {
-          sendFacebookCard(await this.userId.get(turnContext), topFive);
+          sendFacebookCard(await this.userId.get(turnContext), businesses);
         } else {
-          topFive.forEach(business =>
+          businesses.forEach(business =>
             messageArray.push(cardGenerator(business))
           );
           await turnContext.sendActivity(MessageFactory.carousel(messageArray));
