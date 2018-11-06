@@ -1,92 +1,243 @@
 const axios = require('axios');
+const pluralize = require('pluralize');
 const { ActivityTypes } = require('botbuilder');
 const { LuisRecognizer } = require('botbuilder-ai');
 const { MessageFactory } = require('botbuilder-core');
-const cardGenerator = require('./cardGenerator');
-
-const yelpConfig = {
-  headers: {
-    Authorization: 'Bearer TuvmLWJB9pIavJpxZHdCh4deKTEdlMQuRgy8OHNPcn6KiJ_1m7u7XUmx_nPwzUT9ln3mgbf0qoIDUHdIXMpCiTksZnANr8Hj5YaBmxQUcsqpN8YuJr3-TjAblvLWW3Yx'
-  }
-}
+const { yelpConfig } = require('./config');
+const {
+  getFacebookData,
+  sendFacebookCard,
+  reqFacebookLocation,
+  sendTypingIndicator,
+  cardGenerator
+} = require('./utils');
 
 class LuisBot {
   constructor(userState, application, luisPredictionOptions) {
     this.userState = userState;
-    this.userCuisine = userState.createProperty('cuisine');
-    this.userLocation = userState.createProperty('location');
-    this.luisRecognizer = new LuisRecognizer(application, luisPredictionOptions, true);
+    this.userChannel = userState.createProperty('userChannel');
+    this.userName = userState.createProperty('userName');
+    this.userId = userState.createProperty('userId');
+    this.searchTerms = userState.createProperty('searchTerms');
+    this.searchLocation = userState.createProperty('searchLocation');
+    this.searchCategory = userState.createProperty('searchCategory');
+    this.luisRecognizer = new LuisRecognizer(
+      application,
+      luisPredictionOptions,
+      true
+    );
   }
 
   async onTurn(turnContext) {
+    if (!(await this.userChannel.get(turnContext))) {
+      await this.userChannel.set(turnContext, turnContext.activity.channelId);
+      await this.userId.set(turnContext, turnContext.activity.from.id);
+
+      if (turnContext.activity.channelId === 'facebook') {
+        await getFacebookData(await this.userId.get(turnContext)).then(
+          async ({ first_name }) => {
+            await this.userName.set(turnContext, first_name);
+          }
+        );
+      }
+    }
+
     if (turnContext.activity.type === ActivityTypes.Message) {
-      const results = await this.luisRecognizer.recognize(turnContext);
-      console.log(results)
+      let intent, entities;
 
-      let cuisine = await this.userCuisine.get(turnContext)
-      let location = await this.userLocation.get(turnContext)
-
-      try {
-        cuisine = results.luisResult.entities.filter(entity => entity.type === 'cuisine')[0].entity
-        await this.userCuisine.set(turnContext, cuisine)
-      } catch(error) {
-        console.log(error)
+      if (turnContext.activity.text) {
+        const results = await this.luisRecognizer.recognize(turnContext);
+        ({ entities } = results);
+        console.log(results);
+        ({ intent } = this.getIntent(results));
+      } else {
+        intent = 'sendingLocation';
       }
 
-      try {
-        location = results.luisResult.entities.filter(entity => entity.type === 'builtin.geographyV2.city')[0].entity
-        await this.userLocation.set(turnContext, location)
-      } catch(error) {
-        console.log(error)
+      if (intent === 'findBusiness') {
+        await this.parseEntities(turnContext, entities);
+        const allSearchParamsPresent = await this.checkSearchParams(
+          turnContext
+        );
+        if (allSearchParamsPresent) await this.displayResults(turnContext);
+      } else if (intent === 'provideLocation') {
+        await this.searchLocation.set(turnContext, this.getLocation(entities));
+        await this.userState.saveChanges(turnContext);
+        const allSearchParamsPresent = await this.checkSearchParams(
+          turnContext
+        );
+        if (allSearchParamsPresent) await this.displayResults(turnContext);
+      } else if (intent === 'sendingLocation') {
+        const { latitude, longitude } = turnContext.activity.entities[0].geo;
+        await this.searchLocation.set(turnContext, { latitude, longitude });
+        const allSearchParamsPresent = await this.checkSearchParams(
+          turnContext
+        );
+        if (allSearchParamsPresent) await this.displayResults(turnContext);
+      } else if (intent === 'None') {
+        await turnContext.sendActivity(`I'm not sure what you mean...`);
+        await turnContext.sendActivity(
+          `Try asking for food or drink in your area 🍕 🍺 🍣 🍹`
+        );
       }
 
-      if (!location && !cuisine) {
-        await turnContext.sendActivity(`I'm not sure what you're asking for...`);  
-      }
+      console.log(await this.searchLocation.get(turnContext));
+      console.log(await this.searchCategory.get(turnContext));
+      console.log(await this.searchTerms.get(turnContext));
 
-      if (!location && cuisine) {
-        await turnContext.sendActivity(`Where abouts do you want to look for a ${cuisine} restaurant?`);  
-      }
-
-      if (!cuisine && location) {
-        await turnContext.sendActivity(`What type of restaurant are you looking for in ${location}?`);  
-      }
-
-      if (location && cuisine) {
-        await turnContext.sendActivity(`Sounds like you're looking for a ${cuisine} restaurant in ${location} - how about one of these?`);
-
-        const messageArray = [];
-
-        await this.getBusinesses(cuisine, location)
-        .then(async businesses => {
-          const topFive = businesses.slice(0, 5);
-          topFive.forEach(business => {
-            messageArray.push(cardGenerator(business));
-          });
-          await turnContext.sendActivity(MessageFactory.carousel(messageArray))
-        })
-        .catch(error => turnContext.sendActivity(`${error}`));
-
-        await this.userState.clear(turnContext);
-      }
-      
-      // save the userState
-      await this.userState.saveChanges(turnContext);
-    
-    // this bit does the welcome text
-    } else if (turnContext.activity.type === ActivityTypes.ConversationUpdate &&
-      turnContext.activity.recipient.id !== turnContext.activity.membersAdded[0].id) {
-      await turnContext.sendActivity('Hey there, my name is Luis and I can help you to find somewhere to eat out! 🍔 🍕 🌭 🌮 🍝')
-      await turnContext.sendActivity('What do you want me to search for?')
+      // this bit does the welcome text
+    } else if (
+      turnContext.activity.type === ActivityTypes.ConversationUpdate &&
+      turnContext.activity.recipient.id !==
+        turnContext.activity.membersAdded[0].id
+    ) {
+      await turnContext.sendActivity(
+        'Hey, I`m Luis - what can I help you find?'
+      );
     }
   }
 
-  async getBusinesses(term, location) {
-    return axios.get(`https://api.yelp.com/v3/businesses/search?term=${term}&location=${location}`, yelpConfig)
-      .then(({ data }) => {
-        return data.businesses
+  getIntent(results) {
+    const intent = Object.keys(results.intents)[0];
+    const { score } = results.intents[intent];
+    return score >= 0.8 ? { intent } : { intent: undefined };
+  }
+
+  async parseEntities(turnContext, entities) {
+    await this.searchLocation.set(turnContext, this.getLocation(entities));
+    await this.searchCategory.set(turnContext, this.getCategory(entities));
+    await this.searchTerms.set(turnContext, this.getTerms(entities));
+    await this.userState.saveChanges(turnContext);
+  }
+
+  getLocation(entities) {
+    // there are multiple geographyV2 categories, this captures any of them
+    const geographyV2 = Object.keys(entities).filter(e =>
+      e.startsWith('geographyV2')
+    );
+    return geographyV2.length > 0 ? entities[geographyV2][0] : undefined;
+  }
+
+  getCategory(entities) {
+    const categories = ['bars', 'cafes', 'pubs', 'restaurants'];
+    const business = entities.business
+      ? pluralize(entities.business[0])
+      : undefined;
+    return business && categories.includes(business)
+      ? business
+      : this.inferCategory(entities);
+  }
+
+  inferCategory(entities) {
+    const entityLookup = {
+      barDrink: 'bars',
+      cafeDrink: 'cafes',
+      cuisine: 'restaurants',
+      meal: 'restaurants'
+    };
+
+    const entityKeys = Object.keys(entities);
+
+    if (entityKeys.length > 1) {
+      for (let i = 0; i < entityKeys.length; i++) {
+        if (Object.keys(entityLookup).includes(entityKeys[i])) {
+          return entityLookup[entityKeys[i]];
+        }
+      }
+    }
+    return undefined;
+  }
+
+  getTerms(entities) {
+    const entitiesToCheck = ['cuisine', 'meal', 'barDrink'];
+    const entityKeys = Object.keys(entities).filter(e =>
+      entitiesToCheck.includes(e)
+    );
+    const terms = [];
+
+    if (entityKeys.length > 0)
+      entityKeys.forEach(entity => terms.push(entities[entity].join(' ')));
+    return terms.length > 0 ? terms.join(' ') : undefined;
+  }
+
+  async checkSearchParams(turnContext) {
+    if (!(await this.searchLocation.get(turnContext))) {
+      if ((await this.userChannel.get(turnContext)) === 'facebook') {
+        await sendTypingIndicator(
+          await this.userId.get(turnContext),
+          await this.userChannel.get(turnContext)
+        );
+        await reqFacebookLocation(await this.userId.get(turnContext));
+        return false;
+      } else {
+        await turnContext.sendActivity(`Where do you want me to search?`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async getBusinesses(terms, location, category) {
+    console.log({ terms, location, category });
+
+    terms = terms === undefined ? category : terms;
+    const url =
+      typeof location === 'string'
+        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}`
+        : `https://api.yelp.com/v3/businesses/search?term=${terms}&longitude=${
+            location.longitude
+          }&latitude=${location.latitude}&categories=${category}`;
+
+    return axios
+      .get(url, yelpConfig)
+      .then(({ data }) => data.businesses)
+      .catch(console.log);
+  }
+
+  async displayResults(turnContext) {
+    let location = await this.searchLocation.get(turnContext);
+    const terms = await this.searchTerms.get(turnContext);
+    const category = await this.searchCategory.get(turnContext);
+
+    if (typeof location === 'string') {
+      location = location.charAt(0).toUpperCase() + location.slice(1);
+      await sendTypingIndicator(
+        await this.userId.get(turnContext),
+        await this.userChannel.get(turnContext)
+      );
+      await turnContext.sendActivity(
+        `Sounds like you're looking for ${category} in ${location}`
+      );
+    } else {
+      await sendTypingIndicator(
+        await this.userId.get(turnContext),
+        await this.userChannel.get(turnContext)
+      );
+      await turnContext.sendActivity(
+        `Sounds like you're looking for ${category} nearby...`
+      );
+    }
+    await sendTypingIndicator(
+      await this.userId.get(turnContext),
+      await this.userChannel.get(turnContext)
+    );
+    await turnContext.sendActivity(`How about one of these?`);
+
+    await this.getBusinesses(terms, location, category)
+      .then(async businesses => {
+        const topFive = businesses.slice(0, 5);
+        const messageArray = [];
+
+        if ((await this.userChannel.get(turnContext)) === 'facebook') {
+          sendFacebookCard(await this.userId.get(turnContext), topFive);
+        } else {
+          topFive.forEach(business =>
+            messageArray.push(cardGenerator(business))
+          );
+          await turnContext.sendActivity(MessageFactory.carousel(messageArray));
+        }
       })
-      .catch(console.log)
+      .catch(error => turnContext.sendActivity(`${error}`));
   }
 }
 
