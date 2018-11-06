@@ -1,3 +1,5 @@
 node_modules
 ./testbot/config.js
 ./testbot/MBF-Spike.bot
+testbot/config.js
+testbot/MBF-Spike.bot
