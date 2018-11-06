@@ -78,6 +78,7 @@ const sendMoreOptions = async (id, channel, turnContext) => {
       {
         type: 'interactive_message',
         text: 'Would you like to see more options?',
+        token: 'n0JF8xyiD1SrFO0lvN7lCbBA',
         attachments: [
           {
             fallback: 'Button submission broken',
@@ -90,7 +91,8 @@ const sendMoreOptions = async (id, channel, turnContext) => {
                 name: 'More',
                 text: 'More',
                 type: 'button',
-                value: 'More'
+                value: 'More',
+                payload: 'THIS IS A PAYLOAD?!'
               },
               {
                 style: 'danger',

@@ -246,12 +246,6 @@ class LuisBot {
 
     await this.getBusinesses(turnContext, terms, location, category)
       .then(async businesses => {
-        // const messageArray = [];
-        // if ((await this.userChannel.get(turnContext)) === 'facebook') {
-        // await sendFacebookCard(
-        //   await this.userId.get(turnContext),
-        //   businesses
-        // );
         await sendCards(
           await this.userChannel.get(turnContext),
           businesses,
@@ -263,20 +257,6 @@ class LuisBot {
           await this.userChannel.get(turnContext),
           turnContext
         );
-        // } else {
-        //   businesses.forEach(business =>
-        //     messageArray.push(cardGenerator(business))
-        //   );
-        // await turnContext.sendActivity(MessageFactory.carousel(messageArray));
-
-        // const messageChoice = ChoiceFactory.forChannel(
-        //   turnContext,
-        //   ['More', 'Done'],
-        //   'Would you like to see more options?'
-        // );
-
-        // await turnContext.sendActivity(messageChoice);
-        // }
       })
       .catch(error => turnContext.sendActivity(`${error}`));
   }
