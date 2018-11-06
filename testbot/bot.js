@@ -1,6 +1,6 @@
 const axios = require('axios');
 const pluralize = require('pluralize');
-const { ActivityTypes } = require('botbuilder');
+const { ActivityTypes, BotState } = require('botbuilder');
 const { ChoiceFactory } = require('botbuilder-choices');
 const { ChoicePrompt } = require('botbuilder-dialogs');
 const { LuisRecognizer } = require('botbuilder-ai');
@@ -54,6 +54,11 @@ class LuisBot {
         );
         await this.userState.saveChanges(turnContext);
         await this.displayResults(turnContext);
+      } else if (turnContext.activity.text === 'Done') {
+        await this.userState.clear(turnContext);
+        //offset
+        //location
+        //cuisine
       } else {
         let intent, entities;
 
