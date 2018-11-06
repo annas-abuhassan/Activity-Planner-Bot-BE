@@ -43,6 +43,32 @@ const reqFacebookLocation = userId => {
   );
 };
 
+const moreOptionsFacebook = async id => {
+  return axios.post(
+    `https://graph.facebook.com/v2.6/me/messages?access_token=${facebookToken}`,
+    {
+      recipient: {
+        id: id
+      },
+      message: {
+        text: 'Would you like to see more options?',
+        quick_replies: [
+          {
+            content_type: 'text',
+            title: 'More',
+            payload: 'More'
+          },
+          {
+            content_type: 'text',
+            title: 'Done',
+            payload: 'Done'
+          }
+        ]
+      }
+    }
+  );
+};
+
 const sendFacebookCard = async (id, businesses) => {
   const elementsArray = [];
   const starRatings = {
@@ -216,5 +242,6 @@ module.exports = {
   reqFacebookLocation,
   sendFacebookCard,
   sendTypingIndicator,
-  cardGenerator
+  cardGenerator,
+  moreOptionsFacebook
 };

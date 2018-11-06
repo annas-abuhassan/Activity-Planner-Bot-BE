@@ -12,7 +12,8 @@ const {
   sendFacebookCard,
   reqFacebookLocation,
   sendTypingIndicator,
-  cardGenerator
+  cardGenerator,
+  moreOptionsFacebook
 } = require('./utils');
 
 class LuisBot {
@@ -216,6 +217,7 @@ class LuisBot {
   }
 
   async displayResults(turnContext) {
+    const offset = await this.searchOffset.get(turnContext);
     let location = await this.searchLocation.get(turnContext);
     const terms = await this.searchTerms.get(turnContext);
     const category = await this.searchCategory.get(turnContext);
@@ -226,17 +228,19 @@ class LuisBot {
         await this.userId.get(turnContext),
         await this.userChannel.get(turnContext)
       );
-      await turnContext.sendActivity(
-        `Sounds like you're looking for ${category} in ${location}`
-      );
+      if (!offset)
+        await turnContext.sendActivity(
+          `Sounds like you're looking for ${category} in ${location}`
+        );
     } else {
       await sendTypingIndicator(
         await this.userId.get(turnContext),
         await this.userChannel.get(turnContext)
       );
-      await turnContext.sendActivity(
-        `Sounds like you're looking for ${category} nearby...`
-      );
+      if (!offset)
+        await turnContext.sendActivity(
+          `Sounds like you're looking for ${category} nearby...`
+        );
     }
     await sendTypingIndicator(
       await this.userId.get(turnContext),
@@ -248,7 +252,11 @@ class LuisBot {
       .then(async businesses => {
         const messageArray = [];
         if ((await this.userChannel.get(turnContext)) === 'facebook') {
-          sendFacebookCard(await this.userId.get(turnContext), businesses);
+          await sendFacebookCard(
+            await this.userId.get(turnContext),
+            businesses
+          );
+          await moreOptionsFacebook(await this.userId.get(turnContext));
         } else {
           businesses.forEach(business =>
             messageArray.push(cardGenerator(business))
