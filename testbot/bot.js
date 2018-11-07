@@ -2,13 +2,12 @@ const axios = require('axios');
 const pluralize = require('pluralize');
 const { ActivityTypes } = require('botbuilder');
 const { LuisRecognizer } = require('botbuilder-ai');
-
+const shuffle = require('lodash.shuffle');
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
   reqFacebookLocation,
   sendTypingIndicator,
-  sendMoreOptions,
   sendCards
 } = require('./utils');
 
@@ -30,7 +29,6 @@ class LuisBot {
   }
 
   async onTurn(turnContext) {
-    // console.log(turnContext);
     if (!(await this.userChannel.get(turnContext))) {
       await this.userChannel.set(turnContext, turnContext.activity.channelId);
       await this.userId.set(turnContext, turnContext.activity.from.id);
@@ -53,6 +51,9 @@ class LuisBot {
         await this.userState.saveChanges(turnContext);
         await this.displayResults(turnContext);
       } else if (turnContext.activity.text === 'Done') {
+        turnContext.sendActivity(
+          'Great! Let me know if you want to search for something else :)'
+        );
         await this.userState.clear(turnContext);
       } else {
         let intent, entities;
@@ -89,11 +90,28 @@ class LuisBot {
             turnContext
           );
           if (allSearchParamsPresent) await this.displayResults(turnContext);
-        } else if (intent === 'None') {
-          await turnContext.sendActivity(`I'm not sure what you mean...`);
+        } else if (intent === 'None' || intent === undefined) {
+          await turnContext.sendActivity(`I'm not sure what you mean... 🤔`);
           await turnContext.sendActivity(
             `Try asking for food or drink in your area 🍕 🍺 🍣 🍹`
           );
+        } else if (intent === 'greetingIntent') {
+          const name = await this.userName.get(turnContext);
+          const randomGreeting = shuffle([
+            'Hello',
+            'Hey',
+            'Hi',
+            'Howdy',
+            'Yo'
+          ])[0];
+          await turnContext.sendActivity(`${randomGreeting} ${name}`);
+        } else if (intent === 'requestHelp') {
+          await turnContext.sendActivity(
+            'I can help you to find restaurants, bars, pubs and cafes anywhere in the world! 🌍'
+          );
+          await turnContext.sendActivity(`Try asking me things like:\n
+          "Where can I go for cocktails in London? 🍹" or\n 
+          "Show me Italian restaurants in Manchester 🍝"`);
         }
 
         console.log(await this.searchLocation.get(turnContext));

@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { CardFactory } = require('botbuilder');
-const { facebookToken, googleApiKey, slackChannel } = require('./config');
+const { facebookToken, googleApiKey } = require('./config');
 const { ChoiceFactory } = require('botbuilder-choices');
 const { MessageFactory } = require('botbuilder-core');
 
@@ -138,7 +138,7 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
     4: '⭐⭐⭐⭐',
     5: '⭐⭐⭐⭐⭐'
   };
-  businesses.forEach(business => {
+  const foo = businesses.forEach(business => {
     const {
       name,
       image_url,
@@ -227,6 +227,8 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
 };
 
 const sendSlackCard = async businesses => {
+  const messages = [];
+
   const starRatings = {
     1: '⭐',
     2: '⭐⭐',
@@ -250,60 +252,63 @@ const sendSlackCard = async businesses => {
 
     const stars = Math.round(rating);
     const walkingDistance = Math.round(distance / 100);
+    const phone = display_phone.replace('+44 ', '0');
 
-    return axios.post(
-      'https://hooks.slack.com/services/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',
-      {
-        channel: slackChannel,
-        username: 'Daisy-Bot',
-        text: '',
-        icon_emoji:
-          'https://www.muralswallpaper.co.uk/app/uploads/bright-daisy-flower-plain.jpg',
-        attachments: [
-          {
-            fallback: '',
-            pretext: '',
-            color: '#36a64f',
-            title: name,
-            text:
-              '🏠 ' +
-              location.display_address[0] +
-              ', ' +
-              location.zip_code +
-              '\n' +
-              '📱' +
-              display_phone +
-              '\n' +
-              'Rating: ' +
-              starRatings[stars] +
-              '\n' +
-              '🚶 ' +
-              walkingDistance +
-              ' mins  (' +
-              (distance / 1000).toFixed(2) +
-              'km)',
-            actions: [
-              {
-                name: 'website',
-                text: 'Visit website',
-                type: 'button',
-                style: 'primary',
-                url: url
-              },
-              {
-                name: 'directions',
-                text: 'Get Directions',
-                type: 'button',
-                url: `https://www.google.com/maps/dir/?api=1&destination=${
-                  coordinates.latitude
-                },${coordinates.longitude}&travelmode=walking`
-              }
-            ]
-          }
-        ]
-      }
-    );
+    const slackMessage = {
+      fallback: '',
+      pretext: '',
+      color: '#36a64f',
+      title: name,
+      text:
+        '🏠 ' +
+        location.display_address[0] +
+        ', ' +
+        location.zip_code +
+        '\n' +
+        '📱' +
+        phone +
+        '\n' +
+        'Rating: ' +
+        starRatings[stars] +
+        '\n' +
+        '🚶 ' +
+        walkingDistance +
+        ' mins  (' +
+        (distance / 1000).toFixed(2) +
+        'km)',
+      actions: [
+        {
+          name: 'website',
+          text: 'Visit website',
+          type: 'button',
+          style: 'primary',
+          url: url
+        },
+        {
+          name: 'directions',
+          text: 'Get Directions',
+          type: 'button',
+          url: `https://www.google.com/maps/dir/?api=1&destination=${
+            coordinates.latitude
+          },${coordinates.longitude}&travelmode=walking`
+        }
+      ]
+    };
+
+    messages.push(slackMessage);
   });
+
+  return axios.post(
+    'https://hooks.slack.com/services/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',
+    {
+      channel: '#general',
+      username: 'Daisy-Bot',
+      text: '',
+      icon_emoji:
+        'https://www.muralswallpaper.co.uk/app/uploads/bright-daisy-flower-plain.jpg',
+      attachments: messages
+    }
+  );
 };
 
 const sendAdaptiveCard = async (businesses, turnContext) => {

@@ -59,10 +59,6 @@ const userState = new UserState(memoryStorage);
 
 const bot = new LuisBot(userState, luisApplication, luisPredictionOptions);
 
-server.on('after', (req, res, route, err) => {
-  console.log(err, 'SERVER.ON <<<<<<');
-});
-
 // Listen for incoming requests.
 
 server.post('/api/messages', (req, res) => {
