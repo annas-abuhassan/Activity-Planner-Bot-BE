@@ -104,7 +104,7 @@ class LuisBot {
             'Howdy',
             'Yo'
           ])[0];
-          await turnContext.sendActivity(`${randomGreeting} ${name}`);
+          await turnContext.sendActivity(`${randomGreeting} ${name || ''}`);
         } else if (intent === 'requestHelp') {
           await turnContext.sendActivity(
             'I can help you to find restaurants, bars, pubs and cafes anywhere in the world! 🌍'
@@ -138,14 +138,17 @@ class LuisBot {
   }
 
   async parseEntities(turnContext, entities) {
-    await this.searchLocation.set(turnContext, await this.getLocation(turnContext, entities));
+    await this.searchLocation.set(
+      turnContext,
+      await this.getLocation(turnContext, entities)
+    );
     await this.searchCategory.set(turnContext, this.getCategory(entities));
     await this.searchTerms.set(turnContext, this.getTerms(entities));
     await this.userState.saveChanges(turnContext);
   }
 
   async getLocation(turnContext, entities) {
-    const currentLocation = await this.searchLocation.get(turnContext)
+    const currentLocation = await this.searchLocation.get(turnContext);
     if (!currentLocation) {
       // there are multiple geographyV2 categories, this captures any of them
       const geographyV2 = Object.keys(entities).filter(e =>
@@ -210,8 +213,7 @@ class LuisBot {
         await turnContext.sendActivity(`Where do you want me to search?`);
         return false;
       }
-    }
-    else if (!(await this.searchCategory.get(turnContext))) {
+    } else if (!(await this.searchCategory.get(turnContext))) {
       await turnContext.sendActivity('What type of thing are you looking for?');
       return false;
     }
