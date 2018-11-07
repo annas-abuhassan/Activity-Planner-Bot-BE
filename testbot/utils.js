@@ -138,7 +138,7 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
     4: '⭐⭐⭐⭐',
     5: '⭐⭐⭐⭐⭐'
   };
-  const foo = businesses.forEach(business => {
+  businesses.forEach(business => {
     const {
       name,
       image_url,
@@ -294,7 +294,6 @@ const sendSlackCard = async businesses => {
         }
       ]
     };
-
     messages.push(slackMessage);
   });
 
@@ -404,7 +403,6 @@ const sendAdaptiveCard = async (businesses, turnContext) => {
       })
     );
   });
-
   await turnContext.sendActivity(MessageFactory.carousel(businessArray));
 };
 
