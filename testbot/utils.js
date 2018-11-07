@@ -180,7 +180,10 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
           location.zip_code +
           '\n' +
           'Rating: ' +
-          starRatings[stars];
+          starRatings[stars] +
+          '\n' +
+          'Price: ' +
+          price;
 
     const businessElement = {
       title: name,

@@ -21,6 +21,7 @@ class LuisBot {
     this.searchOffset = userState.createProperty('searchOffset');
     this.searchLocation = userState.createProperty('searchLocation');
     this.searchCategory = userState.createProperty('searchCategory');
+    this.searchCost = userState.createProperty('searchCost');
     this.luisRecognizer = new LuisRecognizer(
       application,
       luisPredictionOptions,
@@ -144,7 +145,16 @@ class LuisBot {
     );
     await this.searchCategory.set(turnContext, this.getCategory(entities));
     await this.searchTerms.set(turnContext, this.getTerms(entities));
+    await this.searchCost.set(turnContext, this.getCost(entities));
     await this.userState.saveChanges(turnContext);
+  }
+
+  async getCost(entities) {
+    const cheap = ['cheap', 'budget', 'affordable', 'inexpensive'];
+    const expensive = ['expensive', 'pricey', 'swanky', 'nice', 'posh', 'dear'];
+
+    if (cheap.includes(entities.cost[0])) return '1,2';
+    if (expensive.includes(entities.cost[0])) return '3,4';
   }
 
   async getLocation(turnContext, entities) {
@@ -220,16 +230,20 @@ class LuisBot {
     return true;
   }
 
-  async getBusinesses(turnContext, terms, location, category) {
-    console.log({ terms, location, category });
+  async getBusinesses(turnContext, terms, location, category, cost) {
+    console.log(terms, location, category, `searchCost = ${cost}`);
     const offset = (await this.searchOffset.get(turnContext)) || 0;
     terms = terms === undefined ? category : terms;
     const url =
       typeof location === 'string'
-        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}&limit=5&offset=${offset}`
+        ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}&limit=5&offset=${offset}${
+            cost ? `&price=${cost}` : ''
+          }`
         : `https://api.yelp.com/v3/businesses/search?term=${terms}&longitude=${
             location.longitude
-          }&latitude=${location.latitude}&categories=${category}&limit=5`;
+          }&latitude=${location.latitude}&categories=${category}&limit=5${
+            cost ? `&price=${cost}` : ''
+          }`;
 
     return axios
       .get(url, yelpConfig)
@@ -242,6 +256,7 @@ class LuisBot {
     let location = await this.searchLocation.get(turnContext);
     const terms = await this.searchTerms.get(turnContext);
     const category = await this.searchCategory.get(turnContext);
+    const cost = await this.searchCost.get(turnContext);
 
     if (typeof location === 'string') {
       location = location.charAt(0).toUpperCase() + location.slice(1);
@@ -269,7 +284,7 @@ class LuisBot {
     );
     await turnContext.sendActivity('How about one of these?');
 
-    await this.getBusinesses(turnContext, terms, location, category)
+    await this.getBusinesses(turnContext, terms, location, category, cost)
       .then(async businesses => {
         await sendCards(
           await this.userChannel.get(turnContext),
