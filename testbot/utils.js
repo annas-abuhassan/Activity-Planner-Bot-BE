@@ -1,6 +1,8 @@
 const axios = require('axios');
 const { CardFactory } = require('botbuilder');
 const { facebookToken, googleApiKey } = require('./config');
+const { ChoiceFactory } = require('botbuilder-choices');
+const { MessageFactory } = require('botbuilder-core');
 
 const sendTypingIndicator = async (userId, channel) => {
   if (channel === 'facebook')
@@ -43,7 +45,91 @@ const reqFacebookLocation = userId => {
   );
 };
 
-const sendFacebookCard = async (id, businesses) => {
+const sendMoreOptions = async (id, channel, turnContext) => {
+  if (channel === 'facebook') {
+    return axios.post(
+      `https://graph.facebook.com/v2.6/me/messages?access_token=${facebookToken}`,
+      {
+        recipient: {
+          id: id
+        },
+        message: {
+          text: 'Would you like to see more options?',
+          quick_replies: [
+            {
+              content_type: 'text',
+              title: 'More',
+              payload: 'More'
+            },
+            {
+              content_type: 'text',
+              title: 'Done',
+              payload: 'Done'
+            }
+          ]
+        }
+      }
+    );
+  }
+
+  if (channel === 'slack') {
+    return axios.post(
+      'https://hooks.slack.com/services/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',
+      {
+        type: 'interactive_message',
+        text: 'Would you like to see more options?',
+        token: 'n0JF8xyiD1SrFO0lvN7lCbBA',
+        attachments: [
+          {
+            fallback: 'Button submission broken',
+            callback_id: 'test',
+            color: '#3AA3E3',
+            attachment_type: 'default',
+            actions: [
+              {
+                style: 'primary',
+                name: 'More',
+                text: 'More',
+                type: 'button',
+                value: 'More',
+                payload: 'THIS IS A PAYLOAD?!'
+              },
+              {
+                style: 'danger',
+                name: 'Done',
+                text: 'Done',
+                type: 'button',
+                value: 'Done'
+              }
+            ],
+            response_url:
+              'https://hooks.slack.com/services/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'
+          }
+        ]
+      }
+    );
+  }
+
+  if (channel === 'emulator') {
+    const messageChoice = ChoiceFactory.forChannel(
+      turnContext,
+      ['More', 'Done'],
+      'Would you like to see more options?'
+    );
+
+    await turnContext.sendActivity(messageChoice);
+  }
+};
+
+const sendCards = async (channel, businesses, id, turnContext, location) => {
+  if (channel === 'facebook') await sendFacebookCard(id, businesses, location);
+  else if (channel === 'emulator' || channel === 'directline')
+    await sendAdaptiveCard(businesses, turnContext);
+  else if (channel === 'slack') await sendSlackCard(businesses);
+  await sendMoreOptions(id, channel, turnContext);
+};
+
+const sendFacebookCard = async (id, businesses, currLocation) => {
   const elementsArray = [];
   const starRatings = {
     1: '⭐',
@@ -52,7 +138,7 @@ const sendFacebookCard = async (id, businesses) => {
     4: '⭐⭐⭐⭐',
     5: '⭐⭐⭐⭐⭐'
   };
-  businesses.forEach(business => {
+  const foo = businesses.forEach(business => {
     const {
       name,
       image_url,
@@ -61,11 +147,11 @@ const sendFacebookCard = async (id, businesses) => {
       rating,
       price,
       location,
-      coordinates
+      coordinates,
+      distance
     } = business;
 
-    // const mapLocation =
-    //   location.address1.replace(/\s/g, '') + ',' + location.city;
+    const walkingDistance = Math.round(distance / 100);
     const stars = Math.round(rating);
     const map = `https://maps.googleapis.com/maps/api/staticmap?center=${
       coordinates.latitude
@@ -75,16 +161,31 @@ const sendFacebookCard = async (id, businesses) => {
       coordinates.latitude
     },${coordinates.longitude}&key=${googleApiKey}`;
 
+    const subtitle =
+      typeof currLocation === 'object'
+        ? location.display_address[0] +
+          ', ' +
+          location.zip_code +
+          '\n' +
+          'Rating: ' +
+          starRatings[stars] +
+          '\n' +
+          '🚶 ' +
+          walkingDistance +
+          ' mins  (' +
+          (distance / 1000).toFixed(2) +
+          'km)'
+        : location.display_address[0] +
+          ', ' +
+          location.zip_code +
+          '\n' +
+          'Rating: ' +
+          starRatings[stars];
+
     const businessElement = {
       title: name,
       image_url: image_url.length === 0 ? map : image_url,
-      subtitle:
-        location.display_address[0] +
-        ', ' +
-        location.zip_code +
-        '\n' +
-        'Rating: ' +
-        starRatings[stars],
+      subtitle: subtitle,
       buttons: [
         {
           type: 'web_url',
@@ -125,96 +226,192 @@ const sendFacebookCard = async (id, businesses) => {
   );
 };
 
-const cardGenerator = business => {
-  const {
-    name,
-    image_url,
-    categories,
-    url,
-    display_phone,
-    rating,
-    price,
-    location
-  } = business;
+const sendSlackCard = async businesses => {
+  const messages = [];
 
-  return CardFactory.adaptiveCard({
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    type: 'AdaptiveCard',
-    version: '1.0',
-    body: [
-      {
-        speak:
-          "Tom's Pie is a Pizza restaurant which is rated 9.3 by customers.",
-        type: 'ColumnSet',
-        columns: [
+  const starRatings = {
+    1: '⭐',
+    2: '⭐⭐',
+    3: '⭐⭐⭐',
+    4: '⭐⭐⭐⭐',
+    5: '⭐⭐⭐⭐⭐'
+  };
+
+  businesses.forEach(business => {
+    const {
+      name,
+      image_url,
+      url,
+      display_phone,
+      rating,
+      price,
+      location,
+      coordinates,
+      distance
+    } = business;
+
+    const stars = Math.round(rating);
+    const walkingDistance = Math.round(distance / 100);
+    const phone = display_phone.replace('+44 ', '0');
+
+    const slackMessage = {
+      fallback: '',
+      pretext: '',
+      color: '#36a64f',
+      title: name,
+      text:
+        '🏠 ' +
+        location.display_address[0] +
+        ', ' +
+        location.zip_code +
+        '\n' +
+        '📱' +
+        phone +
+        '\n' +
+        'Rating: ' +
+        starRatings[stars] +
+        '\n' +
+        '🚶 ' +
+        walkingDistance +
+        ' mins  (' +
+        (distance / 1000).toFixed(2) +
+        'km)',
+      actions: [
+        {
+          name: 'website',
+          text: 'Visit website',
+          type: 'button',
+          style: 'primary',
+          url: url
+        },
+        {
+          name: 'directions',
+          text: 'Get Directions',
+          type: 'button',
+          url: `https://www.google.com/maps/dir/?api=1&destination=${
+            coordinates.latitude
+          },${coordinates.longitude}&travelmode=walking`
+        }
+      ]
+    };
+
+    messages.push(slackMessage);
+  });
+
+  return axios.post(
+    'https://hooks.slack.com/services/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',
+    {
+      channel: '#general',
+      username: 'Daisy-Bot',
+      text: '',
+      icon_emoji:
+        'https://www.muralswallpaper.co.uk/app/uploads/bright-daisy-flower-plain.jpg',
+      attachments: messages
+    }
+  );
+};
+
+const sendAdaptiveCard = async (businesses, turnContext) => {
+  const businessArray = [];
+
+  businesses.forEach(business => {
+    const {
+      name,
+      image_url,
+      categories,
+      url,
+      display_phone,
+      rating,
+      price,
+      location
+    } = business;
+
+    businessArray.push(
+      CardFactory.adaptiveCard({
+        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+        type: 'AdaptiveCard',
+        version: '1.0',
+        body: [
           {
-            type: 'Column',
-            width: 2,
-            items: [
+            speak:
+              "Tom's Pie is a Pizza restaurant which is rated 9.3 by customers.",
+            type: 'ColumnSet',
+            columns: [
               {
-                type: 'TextBlock',
-                text: categories[0].title
+                type: 'Column',
+                width: 2,
+                items: [
+                  {
+                    type: 'TextBlock',
+                    text: categories[0].title
+                  },
+                  {
+                    type: 'TextBlock',
+                    text: name,
+                    weight: 'bolder',
+                    size: 'extraLarge',
+                    spacing: 'none'
+                  },
+                  {
+                    type: 'TextBlock',
+                    text:
+                      location.display_address[0] +
+                      ', ' +
+                      location.zip_code +
+                      '.'
+                  },
+                  {
+                    type: 'TextBlock',
+                    text: display_phone,
+                    size: 'small',
+                    wrap: true
+                  },
+                  {
+                    type: 'TextBlock',
+                    text: 'Rating: ' + rating.toString(),
+                    isSubtle: true,
+                    spacing: 'none'
+                  },
+                  {
+                    type: 'TextBlock',
+                    text: 'Price Range: ' + price,
+                    isSubtle: true,
+                    spacing: 'none'
+                  }
+                ]
               },
               {
-                type: 'TextBlock',
-                text: name,
-                weight: 'bolder',
-                size: 'extraLarge',
-                spacing: 'none'
-              },
-              {
-                type: 'TextBlock',
-                text:
-                  location.display_address[0] + ', ' + location.zip_code + '.'
-              },
-              {
-                type: 'TextBlock',
-                text: display_phone,
-                size: 'small',
-                wrap: true
-              },
-              {
-                type: 'TextBlock',
-                text: 'Rating: ' + rating.toString(),
-                isSubtle: true,
-                spacing: 'none'
-              },
-              {
-                type: 'TextBlock',
-                text: 'Price Range: ' + price,
-                isSubtle: true,
-                spacing: 'none'
-              }
-            ]
-          },
-          {
-            type: 'Column',
-            width: 1,
-            items: [
-              {
-                type: 'Image',
-                url: image_url,
-                size: 'auto'
+                type: 'Column',
+                width: 1,
+                items: [
+                  {
+                    type: 'Image',
+                    url: image_url,
+                    size: 'auto'
+                  }
+                ]
               }
             ]
           }
+        ],
+        actions: [
+          {
+            type: 'Action.OpenUrl',
+            title: 'Click For More Infomation',
+            url: url
+          }
         ]
-      }
-    ],
-    actions: [
-      {
-        type: 'Action.OpenUrl',
-        title: 'Click For More Infomation',
-        url: url
-      }
-    ]
+      })
+    );
   });
+
+  await turnContext.sendActivity(MessageFactory.carousel(businessArray));
 };
 
 module.exports = {
   getFacebookData,
   reqFacebookLocation,
-  sendFacebookCard,
   sendTypingIndicator,
-  cardGenerator
+  sendMoreOptions,
+  sendCards
 };
