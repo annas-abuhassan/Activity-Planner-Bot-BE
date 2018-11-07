@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { CardFactory } = require('botbuilder');
-const { facebookToken, googleApiKey } = require('./config');
+const { facebookToken, googleApiKey, slackChannel } = require('./config');
 const { ChoiceFactory } = require('botbuilder-choices');
 const { MessageFactory } = require('botbuilder-core');
 
@@ -121,16 +121,15 @@ const sendMoreOptions = async (id, channel, turnContext) => {
   }
 };
 
-// sendMoreOptions(null, 'slack', null);
-
-const sendCards = async (channel, businesses, id, turnContext) => {
-  if (channel === 'facebook') await sendFacebookCard(id, businesses);
-  else if (channel === 'emulator')
+const sendCards = async (channel, businesses, id, turnContext, location) => {
+  if (channel === 'facebook') await sendFacebookCard(id, businesses, location);
+  else if (channel === 'emulator' || channel === 'directline')
     await sendAdaptiveCard(businesses, turnContext);
-  else if (channel === 'slack') await sendAdaptiveCard(businesses, turnContext);
+  else if (channel === 'slack') await sendSlackCard(businesses);
+  await sendMoreOptions(id, channel, turnContext);
 };
 
-const sendFacebookCard = async (id, businesses) => {
+const sendFacebookCard = async (id, businesses, currLocation) => {
   const elementsArray = [];
   const starRatings = {
     1: '⭐',
@@ -148,11 +147,11 @@ const sendFacebookCard = async (id, businesses) => {
       rating,
       price,
       location,
-      coordinates
+      coordinates,
+      distance
     } = business;
 
-    // const mapLocation =
-    //   location.address1.replace(/\s/g, '') + ',' + location.city;
+    const walkingDistance = Math.round(distance / 100);
     const stars = Math.round(rating);
     const map = `https://maps.googleapis.com/maps/api/staticmap?center=${
       coordinates.latitude
@@ -162,16 +161,31 @@ const sendFacebookCard = async (id, businesses) => {
       coordinates.latitude
     },${coordinates.longitude}&key=${googleApiKey}`;
 
+    const subtitle =
+      typeof currLocation === 'object'
+        ? location.display_address[0] +
+          ', ' +
+          location.zip_code +
+          '\n' +
+          'Rating: ' +
+          starRatings[stars] +
+          '\n' +
+          '🚶 ' +
+          walkingDistance +
+          ' mins  (' +
+          (distance / 1000).toFixed(2) +
+          'km)'
+        : location.display_address[0] +
+          ', ' +
+          location.zip_code +
+          '\n' +
+          'Rating: ' +
+          starRatings[stars];
+
     const businessElement = {
       title: name,
       image_url: image_url.length === 0 ? map : image_url,
-      subtitle:
-        location.display_address[0] +
-        ', ' +
-        location.zip_code +
-        '\n' +
-        'Rating: ' +
-        starRatings[stars],
+      subtitle: subtitle,
       buttons: [
         {
           type: 'web_url',
@@ -210,6 +224,86 @@ const sendFacebookCard = async (id, businesses) => {
       }
     }
   );
+};
+
+const sendSlackCard = async businesses => {
+  const starRatings = {
+    1: '⭐',
+    2: '⭐⭐',
+    3: '⭐⭐⭐',
+    4: '⭐⭐⭐⭐',
+    5: '⭐⭐⭐⭐⭐'
+  };
+
+  businesses.forEach(business => {
+    const {
+      name,
+      image_url,
+      url,
+      display_phone,
+      rating,
+      price,
+      location,
+      coordinates,
+      distance
+    } = business;
+
+    const stars = Math.round(rating);
+    const walkingDistance = Math.round(distance / 100);
+
+    return axios.post(
+      'https://hooks.slack.com/services/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',
+      {
+        channel: slackChannel,
+        username: 'Daisy-Bot',
+        text: '',
+        icon_emoji:
+          'https://www.muralswallpaper.co.uk/app/uploads/bright-daisy-flower-plain.jpg',
+        attachments: [
+          {
+            fallback: '',
+            pretext: '',
+            color: '#36a64f',
+            title: name,
+            text:
+              '🏠 ' +
+              location.display_address[0] +
+              ', ' +
+              location.zip_code +
+              '\n' +
+              '📱' +
+              display_phone +
+              '\n' +
+              'Rating: ' +
+              starRatings[stars] +
+              '\n' +
+              '🚶 ' +
+              walkingDistance +
+              ' mins  (' +
+              (distance / 1000).toFixed(2) +
+              'km)',
+            actions: [
+              {
+                name: 'website',
+                text: 'Visit website',
+                type: 'button',
+                style: 'primary',
+                url: url
+              },
+              {
+                name: 'directions',
+                text: 'Get Directions',
+                type: 'button',
+                url: `https://www.google.com/maps/dir/?api=1&destination=${
+                  coordinates.latitude
+                },${coordinates.longitude}&travelmode=walking`
+              }
+            ]
+          }
+        ]
+      }
+    );
+  });
 };
 
 const sendAdaptiveCard = async (businesses, turnContext) => {
@@ -312,9 +406,7 @@ const sendAdaptiveCard = async (businesses, turnContext) => {
 module.exports = {
   getFacebookData,
   reqFacebookLocation,
-  // sendFacebookCard,
   sendTypingIndicator,
-  // sendAdaptiveCard,
   sendMoreOptions,
   sendCards
 };

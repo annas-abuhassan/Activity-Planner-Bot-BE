@@ -6,10 +6,8 @@ const { LuisRecognizer } = require('botbuilder-ai');
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
-  // sendFacebookCard,
   reqFacebookLocation,
   sendTypingIndicator,
-  // cardGenerator,
   sendMoreOptions,
   sendCards
 } = require('./utils');
@@ -204,7 +202,7 @@ class LuisBot {
         ? `https://api.yelp.com/v3/businesses/search?term=${terms}&location=${location}&categories=${category}&limit=5&offset=${offset}`
         : `https://api.yelp.com/v3/businesses/search?term=${terms}&longitude=${
             location.longitude
-          }&latitude=${location.latitude}&categories=${category}`;
+          }&latitude=${location.latitude}&categories=${category}&limit=5`;
 
     return axios
       .get(url, yelpConfig)
@@ -250,15 +248,14 @@ class LuisBot {
           await this.userChannel.get(turnContext),
           businesses,
           await this.userId.get(turnContext),
-          turnContext
-        );
-        await sendMoreOptions(
-          await this.userId.get(turnContext),
-          await this.userChannel.get(turnContext),
-          turnContext
+          turnContext,
+          location
         );
       })
-      .catch(error => turnContext.sendActivity(`${error}`));
+      .catch(error => {
+        console.log(error);
+        turnContext.sendActivity(`${error}`);
+      });
   }
 }
 
