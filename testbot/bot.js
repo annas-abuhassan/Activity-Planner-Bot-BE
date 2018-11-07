@@ -76,7 +76,7 @@ class LuisBot {
         } else if (intent === 'provideLocation') {
           await this.searchLocation.set(
             turnContext,
-            this.getLocation(entities)
+            await this.getLocation(turnContext, entities)
           );
           await this.userState.saveChanges(turnContext);
           const allSearchParamsPresent = await this.checkSearchParams(
@@ -138,18 +138,22 @@ class LuisBot {
   }
 
   async parseEntities(turnContext, entities) {
-    await this.searchLocation.set(turnContext, this.getLocation(entities));
+    await this.searchLocation.set(turnContext, await this.getLocation(turnContext, entities));
     await this.searchCategory.set(turnContext, this.getCategory(entities));
     await this.searchTerms.set(turnContext, this.getTerms(entities));
     await this.userState.saveChanges(turnContext);
   }
 
-  getLocation(entities) {
-    // there are multiple geographyV2 categories, this captures any of them
-    const geographyV2 = Object.keys(entities).filter(e =>
-      e.startsWith('geographyV2')
-    );
-    return geographyV2.length > 0 ? entities[geographyV2][0] : undefined;
+  async getLocation(turnContext, entities) {
+    const currentLocation = await this.searchLocation.get(turnContext)
+    console.log(currentLocation + ' <<<<<<<<<< CURRENT LOCATION LINE 149')
+    if (!currentLocation) {
+      // there are multiple geographyV2 categories, this captures any of them
+      const geographyV2 = Object.keys(entities).filter(e =>
+        e.startsWith('geographyV2')
+      );
+      return geographyV2.length > 0 ? entities[geographyV2][0] : undefined;
+    } else return currentLocation;
   }
 
   getCategory(entities) {
@@ -198,6 +202,7 @@ class LuisBot {
     if (!(await this.searchLocation.get(turnContext))) {
       if ((await this.userChannel.get(turnContext)) === 'facebook') {
         await sendTypingIndicator(
+          // are these two lines of code meant to be here?
           await this.userId.get(turnContext),
           await this.userChannel.get(turnContext)
         );
@@ -207,6 +212,10 @@ class LuisBot {
         await turnContext.sendActivity(`Where do you want me to search?`);
         return false;
       }
+    }
+    else if (!(await this.searchCategory.get(turnContext))) {
+      await turnContext.sendActivity('What type of thing are you looking for?');
+      return false;
     }
     return true;
   }
