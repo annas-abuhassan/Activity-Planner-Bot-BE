@@ -44,6 +44,7 @@ class LuisBot {
     }
 
     if (turnContext.activity.type === ActivityTypes.Message) {
+      const userName = await this.userName.get(turnContext);
       if (turnContext.activity.text === 'More') {
         await this.searchOffset.set(
           turnContext,
@@ -53,7 +54,9 @@ class LuisBot {
         await this.displayResults(turnContext);
       } else if (turnContext.activity.text === 'Done') {
         turnContext.sendActivity(
-          'Great! Let me know if you want to search for something else :)'
+          `Great${
+            userName ? ` ${userName}!` : '!'
+          } Let me know if you want to search for something else :)`
         );
         await this.userState.clear(turnContext);
       } else {
@@ -118,6 +121,7 @@ class LuisBot {
         console.log(await this.searchLocation.get(turnContext));
         console.log(await this.searchCategory.get(turnContext));
         console.log(await this.searchTerms.get(turnContext));
+        console.log(await this.searchCost.get(turnContext));
       }
 
       // this bit does the welcome text
@@ -152,9 +156,10 @@ class LuisBot {
   async getCost(entities) {
     const cheap = ['cheap', 'budget', 'affordable', 'inexpensive'];
     const expensive = ['expensive', 'pricey', 'swanky', 'nice', 'posh', 'dear'];
-
-    if (cheap.includes(entities.cost[0])) return '1,2';
-    if (expensive.includes(entities.cost[0])) return '3,4';
+    if (entities.cost) {
+      if (cheap.includes(entities.cost[0])) return '1,2';
+      if (expensive.includes(entities.cost[0])) return '3,4';
+    }
   }
 
   async getLocation(turnContext, entities) {
