@@ -146,7 +146,6 @@ class LuisBot {
 
   async getLocation(turnContext, entities) {
     const currentLocation = await this.searchLocation.get(turnContext)
-    console.log(currentLocation + ' <<<<<<<<<< CURRENT LOCATION LINE 149')
     if (!currentLocation) {
       // there are multiple geographyV2 categories, this captures any of them
       const geographyV2 = Object.keys(entities).filter(e =>
@@ -202,7 +201,6 @@ class LuisBot {
     if (!(await this.searchLocation.get(turnContext))) {
       if ((await this.userChannel.get(turnContext)) === 'facebook') {
         await sendTypingIndicator(
-          // are these two lines of code meant to be here?
           await this.userId.get(turnContext),
           await this.userChannel.get(turnContext)
         );
@@ -267,7 +265,7 @@ class LuisBot {
       await this.userId.get(turnContext),
       await this.userChannel.get(turnContext)
     );
-    await turnContext.sendActivity(`How about one of these?`);
+    await turnContext.sendActivity('How about one of these?');
 
     await this.getBusinesses(turnContext, terms, location, category)
       .then(async businesses => {
