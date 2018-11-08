@@ -34,7 +34,7 @@ const reqFacebookLocation = userId => {
       },
       message: {
         text:
-          'Click below to share with me your location or tell me where to search :)!',
+          'Click below to share with me your location or tell me where to search 📍',
         quick_replies: [
           {
             content_type: 'location'
@@ -180,7 +180,9 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
           location.zip_code +
           '\n' +
           'Rating: ' +
-          starRatings[stars];
+          starRatings[stars] +
+          '\n' +
+          `${price ? 'Price: ' + price : ''}`;
 
     const businessElement = {
       title: name,
@@ -275,7 +277,10 @@ const sendSlackCard = async businesses => {
         walkingDistance +
         ' mins  (' +
         (distance / 1000).toFixed(2) +
-        'km)',
+        'km)' +
+        '\n' +
+        `${price ? 'Price: ' + price : ''}`,
+
       actions: [
         {
           name: 'website',
