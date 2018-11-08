@@ -182,6 +182,8 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
           'Rating: ' +
           starRatings[stars] +
           '\n' +
+          `${price ? 'Price: ' + price : ''}` +
+          '\n' +
           '🚶 ' +
           walkingDistance +
           ' mins  (' +
