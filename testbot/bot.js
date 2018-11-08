@@ -6,6 +6,7 @@ const shuffle = require('lodash.shuffle');
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
+  getUserData,
   reqFacebookLocation,
   sendTypingIndicator,
   sendCards
@@ -30,17 +31,25 @@ class LuisBot {
   }
 
   async onTurn(turnContext) {
+    console.log(turnContext);
     if (!(await this.userChannel.get(turnContext))) {
       await this.userChannel.set(turnContext, turnContext.activity.channelId);
       await this.userId.set(turnContext, turnContext.activity.from.id);
 
-      if (turnContext.activity.channelId === 'facebook') {
-        await getFacebookData(await this.userId.get(turnContext)).then(
-          async ({ first_name }) => {
-            await this.userName.set(turnContext, first_name);
-          }
-        );
-      }
+      // if (turnContext.activity.channelId === 'facebook') {
+      await getUserData(
+        await this.userChannel.get(turnContext),
+        await this.userId.get(turnContext)
+      ).then(async name => {
+        await console.log(name, 'NAME INSIDE GET USER DATA in BOT');
+        await this.userName.set(turnContext, name);
+      });
+      // await getFacebookData(await this.userId.get(turnContext)).then(
+      //   async ({ first_name }) => {
+      //     await this.userName.set(turnContext, first_name);
+      //   }
+      // );
+      // }
     }
 
     if (turnContext.activity.type === ActivityTypes.Message) {
