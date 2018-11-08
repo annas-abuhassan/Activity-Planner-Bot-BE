@@ -5,7 +5,6 @@ const { LuisRecognizer } = require('botbuilder-ai');
 const shuffle = require('lodash.shuffle');
 const { yelpConfig } = require('./config');
 const {
-  getFacebookData,
   getUserData,
   reqFacebookLocation,
   sendTypingIndicator,
