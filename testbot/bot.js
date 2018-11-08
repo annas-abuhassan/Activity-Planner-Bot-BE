@@ -6,6 +6,7 @@ const shuffle = require('lodash.shuffle');
 const { yelpConfig } = require('./config');
 const {
   getFacebookData,
+  getUserData,
   reqFacebookLocation,
   sendTypingIndicator,
   sendCards
@@ -30,38 +31,38 @@ class LuisBot {
   }
 
   async onTurn(turnContext) {
+    console.log(turnContext);
     if (!(await this.userChannel.get(turnContext))) {
       await this.userChannel.set(turnContext, turnContext.activity.channelId);
       await this.userId.set(turnContext, turnContext.activity.from.id);
 
-      if (turnContext.activity.channelId === 'facebook') {
-        await getFacebookData(await this.userId.get(turnContext))
-        .then(async ({ first_name }) => {
-            await this.userName.set(turnContext, first_name);
-          }
-        )
-        .catch(console.log)
-      }
+      await getUserData(
+        await this.userChannel.get(turnContext),
+        await this.userId.get(turnContext)
+      ).then(async name => {
+        await this.userName.set(turnContext, name);
+      });
     }
 
     if (turnContext.activity.type === ActivityTypes.Message) {
-      if (turnContext.activity.text === 'More') { // if the user has clicked the More button
+      if (turnContext.activity.text === 'More') {
+        // if the user has clicked the More button
         await this.searchOffset.set(
           turnContext,
           (await this.searchOffset.get(turnContext)) + 5 || 5
         );
         await this.userState.saveChanges(turnContext);
         await this.displayResults(turnContext);
-      }
-      else if (turnContext.activity.text === 'Done') { // else if they've clicked Done
+      } else if (turnContext.activity.text === 'Done') {
+        // else if they've clicked Done
         const userName = await this.userName.get(turnContext);
         turnContext.sendActivity(
           `OK ${userName} - just let me know if you want to search for something else 🙂`
         );
         // clear the user state, as this is the 'end' of this dialog
-        await this.userState.clear(turnContext)
-      }
-      else { // send the user's message to LUIS for NLP
+        await this.userState.clear(turnContext);
+      } else {
+        // send the user's message to LUIS for NLP
         let intent, entities;
 
         if (turnContext.activity.text) {
@@ -69,10 +70,12 @@ class LuisBot {
           console.log(results);
           ({ entities } = results);
           intent = this.getIntent(results);
-        }
-        else {
-          console.log(turnContext.activity)
-          intent = turnContext.activity.entities.length > 0 ? 'sendingLocation' : 'None'
+        } else {
+          console.log(turnContext.activity);
+          intent =
+            turnContext.activity.entities.length > 0
+              ? 'sendingLocation'
+              : 'None';
         }
 
         if (intent === 'findBusiness') {
@@ -84,31 +87,32 @@ class LuisBot {
           );
 
           if (allSearchParamsPresent) await this.displayResults(turnContext);
-        }
-        else if (intent === 'provideLocation') {
+        } else if (intent === 'provideLocation') {
           await this.searchLocation.set(
             turnContext,
             await this.getLocation(turnContext, entities)
           );
           await this.userState.saveChanges(turnContext);
-          const allSearchParamsPresent = await this.checkSearchParams(turnContext);
+          const allSearchParamsPresent = await this.checkSearchParams(
+            turnContext
+          );
           if (allSearchParamsPresent) await this.displayResults(turnContext);
-        }
-        else if (intent === 'sendingLocation') {
+        } else if (intent === 'sendingLocation') {
           const { latitude, longitude } = turnContext.activity.entities[0].geo;
           await this.searchLocation.set(turnContext, { latitude, longitude });
           await this.userState.saveChanges(turnContext);
-          const allSearchParamsPresent = await this.checkSearchParams(turnContext);
+          const allSearchParamsPresent = await this.checkSearchParams(
+            turnContext
+          );
           if (allSearchParamsPresent) await this.displayResults(turnContext);
-        }
-        else if (intent === 'None' || intent === undefined) {
+        } else if (intent === 'None' || intent === undefined) {
           await turnContext.sendActivity(`I'm not sure what you mean... 🤔`);
-          await turnContext.sendActivity(`Try asking for food or drink in your area 🍕 🍺 🍣 🍹`);
-        }
-        else if (intent === 'greetingIntent') {
+          await turnContext.sendActivity(
+            `Try asking for food or drink in your area 🍕 🍺 🍣 🍹`
+          );
+        } else if (intent === 'greetingIntent') {
           await this.greetUser(turnContext);
-        }
-        else if (intent === 'requestHelp') {
+        } else if (intent === 'requestHelp') {
           await turnContext.sendActivity(
             'I can help you to find restaurants, bars, pubs and cafes anywhere in the world! 🌍'
           );
@@ -130,7 +134,7 @@ class LuisBot {
         turnContext.activity.membersAdded[0].id
     ) {
       await turnContext.sendActivity(
-        'Hi, I\'m Daisy - what can I help you find? 🌼'
+        "Hi, I'm Daisy - what can I help you find? 🌼"
       );
     }
   }
@@ -152,25 +156,24 @@ class LuisBot {
     await this.userState.saveChanges(turnContext);
   }
 
-  
   async getLocation(turnContext, entities) {
     const geographyV2 = Object.keys(entities).filter(e =>
       e.startsWith('geographyV2')
     );
     return geographyV2.length > 0 ? entities[geographyV2][0] : undefined;
   }
-  
+
   getCategory(entities) {
     const categories = ['bars', 'cafes', 'pubs', 'restaurants'];
     const business = entities.business
-    ? pluralize(entities.business[0])
-    : undefined;
+      ? pluralize(entities.business[0])
+      : undefined;
 
     return business && categories.includes(business)
-    ? business
-    : this.inferCategory(entities);
+      ? business
+      : this.inferCategory(entities);
   }
-    
+
   inferCategory(entities) {
     const entityLookup = {
       barDrink: 'bars',
@@ -178,9 +181,9 @@ class LuisBot {
       cuisine: 'restaurants',
       meal: 'restaurants'
     };
-    
+
     const entityKeys = Object.keys(entities);
-    
+
     if (entityKeys.length > 1) {
       for (let i = 0; i < entityKeys.length; i++) {
         if (Object.keys(entityLookup).includes(entityKeys[i])) {
@@ -190,10 +193,12 @@ class LuisBot {
     }
     return undefined;
   }
-    
+
   getTerms(entities) {
     const entitiesToCheck = ['cuisine', 'meal', 'barDrink'];
-    const entityKeys = Object.keys(entities).filter(e => entitiesToCheck.includes(e));
+    const entityKeys = Object.keys(entities).filter(e =>
+      entitiesToCheck.includes(e)
+    );
     const terms = [];
 
     if (entityKeys.length > 0) {
@@ -202,7 +207,7 @@ class LuisBot {
 
     return terms.length > 0 ? terms.join(' ') : undefined;
   }
-    
+
   getCost(entities) {
     const cheap = ['cheap', 'budget', 'affordable', 'inexpensive'];
     const expensive = ['expensive', 'pricey', 'swanky', 'nice', 'posh', 'dear'];
@@ -210,10 +215,9 @@ class LuisBot {
     if (entities.cost) {
       if (cheap.includes(entities.cost[0])) return '1,2';
       if (expensive.includes(entities.cost[0])) return '3,4';
-    }
-    else return '1,2,3,4';
+    } else return '1,2,3,4';
   }
-      
+
   async checkSearchParams(turnContext) {
     if (!(await this.searchLocation.get(turnContext))) {
       if ((await this.userChannel.get(turnContext)) === 'facebook') {
@@ -239,12 +243,12 @@ class LuisBot {
     terms = terms === undefined ? category : terms;
 
     const url = `https://api.yelp.com/v3/businesses/search?term=${terms}&categories=${category}&limit=5&offset=${offset}&price=${cost}`.concat(
-      (typeof location === 'string')
-      ? `&location=${location}`
-      : `&longitude=${location.longitude}&latitude=${location.latitude}`
-    )
-    
-    console.log(url)
+      typeof location === 'string'
+        ? `&location=${location}`
+        : `&longitude=${location.longitude}&latitude=${location.latitude}`
+    );
+
+    console.log(url);
 
     return axios
       .get(url, yelpConfig)
@@ -286,23 +290,24 @@ class LuisBot {
       await this.userChannel.get(turnContext)
     );
 
-    
     await this.getBusinesses(turnContext, terms, location, category, cost)
-    .then(async businesses => {
-      if (businesses) {
-        await turnContext.sendActivity('How about one of these?');
-        await sendCards(
-          await this.userChannel.get(turnContext),
-          businesses,
-          await this.userId.get(turnContext),
-          turnContext,
-          location
-        );
+      .then(async businesses => {
+        if (businesses) {
+          await turnContext.sendActivity('How about one of these?');
+          await sendCards(
+            await this.userChannel.get(turnContext),
+            businesses,
+            await this.userId.get(turnContext),
+            turnContext,
+            location
+          );
         } else {
           if (!(await this.searchOffset.get(turnContext))) {
-            turnContext.sendActivity('Sorry, I couldn\'t find anything for that search 🙁');
+            turnContext.sendActivity(
+              "Sorry, I couldn't find anything for that search 🙁"
+            );
           } else {
-            turnContext.sendActivity('Sorry, I couldn\'t find anything else!');
+            turnContext.sendActivity("Sorry, I couldn't find anything else!");
           }
         }
       })
@@ -314,13 +319,7 @@ class LuisBot {
 
   async greetUser(turnContext) {
     const userName = await this.userName.get(turnContext);
-    const randomGreeting = shuffle([
-      'Hello',
-      'Hey',
-      'Hi',
-      'Howdy',
-      'Yo'
-    ])[0];
+    const randomGreeting = shuffle(['Hello', 'Hey', 'Hi', 'Howdy', 'Yo'])[0];
     await turnContext.sendActivity(`${randomGreeting} ${userName || ''}`);
   }
 }

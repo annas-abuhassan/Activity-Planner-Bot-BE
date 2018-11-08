@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { CardFactory } = require('botbuilder');
-const { facebookToken, googleApiKey } = require('./config');
+const { facebookToken, googleApiKey, slackToken } = require('./config');
 const { ChoiceFactory } = require('botbuilder-choices');
 const { MessageFactory } = require('botbuilder-core');
 
@@ -17,12 +17,24 @@ const sendTypingIndicator = async (userId, channel) => {
     );
 };
 
+const getUserData = async (channel, id) => {
+  if (channel === 'facebook') return getFacebookData(id);
+  if (channel === 'slack') return getSlackData(id);
+};
+
 const getFacebookData = async userId => {
   return axios
     .get(
       `https://graph.facebook.com/${userId}?fields=first_name,last_name,profile_pic&access_token=${facebookToken}`
     )
-    .then(({ data }) => data);
+    .then(({ data }) => data.first_name);
+};
+
+const getSlackData = async userId => {
+  splitId = userId.split(':')[0];
+  return axios
+    .get(`https://slack.com/api/users.info?token=${slackToken}&user=${splitId}`)
+    .then(({ data }) => data.user.profile.real_name);
 };
 
 const reqFacebookLocation = userId => {
@@ -169,6 +181,8 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
           '\n' +
           'Rating: ' +
           starRatings[stars] +
+          '\n' +
+          `${price ? 'Price: ' + price : ''}` +
           '\n' +
           '🚶 ' +
           walkingDistance +
@@ -416,5 +430,6 @@ module.exports = {
   reqFacebookLocation,
   sendTypingIndicator,
   sendMoreOptions,
-  sendCards
+  sendCards,
+  getUserData
 };
