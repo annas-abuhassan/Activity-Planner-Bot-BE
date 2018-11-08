@@ -182,8 +182,7 @@ const sendFacebookCard = async (id, businesses, currLocation) => {
           'Rating: ' +
           starRatings[stars] +
           '\n' +
-          'Price: ' +
-          price;
+          `${price ? 'Price: ' + price : ''}`;
 
     const businessElement = {
       title: name,
@@ -278,7 +277,10 @@ const sendSlackCard = async businesses => {
         walkingDistance +
         ' mins  (' +
         (distance / 1000).toFixed(2) +
-        'km)',
+        'km)' +
+        '\n' +
+        `${price ? 'Price: ' + price : ''}`,
+
       actions: [
         {
           name: 'website',
