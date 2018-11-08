@@ -46,7 +46,7 @@ const reqFacebookLocation = userId => {
       },
       message: {
         text:
-          'Click below to share with me your location or tell me where to search :)!',
+          'Click below to share with me your location or tell me where to search 📍',
         quick_replies: [
           {
             content_type: 'location'
