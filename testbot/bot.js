@@ -5,7 +5,6 @@ const { LuisRecognizer } = require('botbuilder-ai');
 const shuffle = require('lodash.shuffle');
 const { yelpConfig } = require('./config');
 const {
-  getFacebookData,
   getUserData,
   reqFacebookLocation,
   sendTypingIndicator,
@@ -113,8 +112,16 @@ class LuisBot {
         } else if (intent === 'greetingIntent') {
           await this.greetUser(turnContext);
         } else if (intent === 'requestHelp') {
+          await sendTypingIndicator(
+            await this.userId.get(turnContext),
+            await this.userChannel.get(turnContext)
+          );
           await turnContext.sendActivity(
             'I can help you to find restaurants, bars, pubs and cafes anywhere in the world! 🌍'
+          );
+          await sendTypingIndicator(
+            await this.userId.get(turnContext),
+            await this.userChannel.get(turnContext)
           );
           await turnContext.sendActivity(`Try asking me things like:\n
           "Where can I go for cocktails in London? 🍹" or\n 
@@ -320,6 +327,10 @@ class LuisBot {
   async greetUser(turnContext) {
     const userName = await this.userName.get(turnContext);
     const randomGreeting = shuffle(['Hello', 'Hey', 'Hi', 'Howdy', 'Yo'])[0];
+    await sendTypingIndicator(
+      await this.userId.get(turnContext),
+      await this.userChannel.get(turnContext)
+    );
     await turnContext.sendActivity(`${randomGreeting} ${userName || ''}`);
   }
 }
